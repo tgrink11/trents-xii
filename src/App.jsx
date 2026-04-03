@@ -157,7 +157,12 @@ export default function App() {
   }
 
   const startDate = holdings.length > 0
-    ? new Date(Math.min(...holdings.map(h => new Date(h.entry_date || '2026-04-02')))).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    ? (() => {
+        const dates = holdings.map(h => h.entry_date || '2026-04-02').sort()
+        const [y, m, d] = dates[0].split('-').map(Number)
+        const dt = new Date(y, m - 1, d) // local date, no UTC shift
+        return dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      })()
     : null
 
   if (loading) {
