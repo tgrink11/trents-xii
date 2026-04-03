@@ -1,0 +1,449 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #fff;
+  color: #1a1a2e;
+  font-size: 14px;
+}
+
+.app-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px 24px;
+}
+
+/* Header / Logo */
+.header {
+  margin-bottom: 24px;
+}
+
+.header .logo-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header .brand-name {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 28px;
+  color: #1a1a2e;
+  line-height: 1;
+}
+
+.header .brand-name .stars {
+  color: #c41e3a;
+  font-size: 12px;
+  vertical-align: super;
+}
+
+.header .brand-name .of {
+  font-size: 16px;
+  font-style: italic;
+  color: #c41e3a;
+  vertical-align: super;
+}
+
+.header .brand-sub {
+  font-family: Georgia, serif;
+  font-size: 13px;
+  color: #1a1a2e;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.header h1 {
+  font-family: Georgia, serif;
+  font-size: 26px;
+  font-weight: 700;
+  margin-top: 8px;
+  color: #1a1a2e;
+}
+
+/* Top Row: Performance + Market Indicator */
+.top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 40px;
+  margin-bottom: 24px;
+}
+
+/* Performance Summary */
+.performance-summary {
+  flex: 1;
+}
+
+.performance-summary .section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #1a1a2e;
+  margin-bottom: 8px;
+}
+
+.performance-table {
+  border-collapse: collapse;
+  width: auto;
+}
+
+.performance-table th,
+.performance-table td {
+  border: 1px solid #b8c6d4;
+  padding: 6px 16px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.performance-table th {
+  background: #2c3e6b;
+  color: #fff;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.performance-table td:first-child {
+  text-align: left;
+  font-weight: 600;
+  background: #f0f4f8;
+}
+
+.diff-negative {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.diff-positive {
+  color: #28a745;
+  font-weight: 600;
+}
+
+/* Market Indicator */
+.market-indicator {
+  text-align: right;
+}
+
+.market-indicator .section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #1a1a2e;
+  margin-bottom: 8px;
+  text-align: right;
+}
+
+.vix-table {
+  border-collapse: collapse;
+  margin-left: auto;
+}
+
+.vix-table th,
+.vix-table td {
+  border: 1px solid #b8c6d4;
+  padding: 6px 16px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.vix-table th {
+  background: #2c3e6b;
+  color: #fff;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.vix-value {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.vix-investable { background: #c6e7c6; }
+.vix-chop { background: #c6e7c6; border: 2px solid #7ab87a; }
+.vix-defensive { background: #f2b4b4; }
+
+.vix-range {
+  font-size: 11px;
+  color: #666;
+  margin-top: 6px;
+  font-style: italic;
+  text-align: right;
+}
+
+/* Holdings Section */
+.holdings-section {
+  margin-top: 8px;
+}
+
+.holdings-section .section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #1a1a2e;
+  margin-bottom: 8px;
+}
+
+.holdings-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.holdings-table th {
+  background: #2c3e6b;
+  color: #fff;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: capitalize;
+  padding: 8px 10px;
+  border: 1px solid #1a2a4a;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.holdings-table td {
+  border: 1px solid #b8c6d4;
+  padding: 6px 10px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.holdings-table td:first-child {
+  text-align: left;
+}
+
+.holdings-table td:nth-child(2) {
+  text-align: center;
+  font-weight: 600;
+}
+
+.holdings-table tbody tr:hover {
+  background: #f5f7fa;
+}
+
+/* Trend cells - matching screenshot colors */
+.trend-up {
+  background: #c6e7c6 !important;
+  color: #1a1a2e;
+  font-weight: 600;
+}
+
+.trend-down {
+  background: #f2b4b4 !important;
+  color: #1a1a2e;
+  font-weight: 600;
+}
+
+.trend-down-yellow {
+  background: #ffff00 !important;
+  color: #1a1a2e;
+  font-weight: 600;
+}
+
+/* Admin Panel */
+.admin-toggle {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #2c3e6b;
+  color: #fff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 100;
+}
+
+.admin-toggle:hover {
+  background: #1a2a4a;
+}
+
+.admin-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 40px;
+  overflow-y: auto;
+}
+
+.admin-panel {
+  background: #fff;
+  border-radius: 12px;
+  padding: 28px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+.admin-panel h2 {
+  font-size: 20px;
+  margin-bottom: 20px;
+  color: #1a1a2e;
+}
+
+.admin-panel h3 {
+  font-size: 15px;
+  margin: 20px 0 10px;
+  color: #2c3e6b;
+  border-bottom: 2px solid #e8ecf0;
+  padding-bottom: 6px;
+}
+
+.admin-panel .close-btn {
+  float: right;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+}
+
+.admin-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.admin-form label {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+}
+
+.admin-form input,
+.admin-form select {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.admin-form .full-width {
+  grid-column: 1 / -1;
+}
+
+.admin-btn {
+  background: #2c3e6b;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-btn:hover {
+  background: #1a2a4a;
+}
+
+.admin-btn.danger {
+  background: #dc3545;
+}
+
+.admin-btn.danger:hover {
+  background: #b02a37;
+}
+
+.trade-history {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.trade-history th,
+.trade-history td {
+  border: 1px solid #ddd;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.trade-history th {
+  background: #f0f4f8;
+  font-weight: 600;
+}
+
+/* Password prompt */
+.password-prompt {
+  text-align: center;
+  padding: 40px;
+}
+
+.password-prompt input {
+  padding: 10px 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-right: 8px;
+  width: 200px;
+}
+
+/* Tabs for admin */
+.admin-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e8ecf0;
+}
+
+.admin-tab {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: -2px;
+}
+
+.admin-tab.active {
+  color: #2c3e6b;
+  border-bottom-color: #2c3e6b;
+}
+
+/* Loading */
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-size: 15px;
+}
+
+/* Options table */
+.options-section {
+  margin-top: 24px;
+}
+
+.options-section .section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #1a1a2e;
+  margin-bottom: 8px;
+}
