@@ -1,20 +1,65 @@
 const MASSIVE_KEY = process.env.MASSIVE_API_KEY
+const FMP_KEY = process.env.FMP_API_KEY
 const MASSIVE_BASE = 'https://api.massive.com'
+const FMP_BASE = 'https://financialmodelingprep.com/api/v3'
 
-// Helper: fetch with retry on 429
-async function fetchWithRetry(url, retries = 2) {
-  for (let i = 0; i <= retries; i++) {
-    const r = await fetch(url)
-    if (r.status === 429 && i < retries) {
-      await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1)))
-      continue
+const delay = ms => new Promise(r => setTimeout(r, ms))
+
+// Try MASSIVE first, fall back to FMP for quotes
+async function getQuote(ticker) {
+  // Try MASSIVE
+  try {
+    const r = await fetch(`${MASSIVE_BASE}/v2/aggs/ticker/${ticker}/prev?adjusted=true&apiKey=${MASSIVE_KEY}`)
+    if (r.ok) {
+      const json = await r.json()
+      if (json.status === 'OK' && json.results?.[0]) {
+        const bar = json.results[0]
+        return { price: bar.c, open: bar.o, high: bar.h, low: bar.l }
+      }
     }
-    return r
-  }
+  } catch { /* fall through */ }
+
+  // Fallback: FMP
+  try {
+    const r = await fetch(`${FMP_BASE}/quote/${ticker}?apikey=${FMP_KEY}`)
+    if (r.ok) {
+      const json = await r.json()
+      if (json?.[0]) {
+        return { price: json[0].price, open: json[0].open, high: json[0].dayHigh, low: json[0].dayLow }
+      }
+    }
+  } catch { /* skip */ }
+
+  return { price: null }
 }
 
-// Helper: delay
-const delay = ms => new Promise(r => setTimeout(r, ms))
+// Try MASSIVE for SMA, compute manually from FMP as fallback
+async function getSMA(ticker, window) {
+  // Try MASSIVE
+  try {
+    const r = await fetch(`${MASSIVE_BASE}/v1/indicators/sma/${ticker}?timespan=day&adjusted=true&window=${window}&series_type=close&order=desc&limit=1&apiKey=${MASSIVE_KEY}`)
+    if (r.ok) {
+      const json = await r.json()
+      const val = json.results?.values?.[0]?.value
+      if (val != null) return val
+    }
+  } catch { /* fall through */ }
+
+  // Fallback: FMP historical prices, compute SMA manually
+  try {
+    const r = await fetch(`${FMP_BASE}/historical-price-full/${ticker}?timeseries=${window}&apikey=${FMP_KEY}`)
+    if (r.ok) {
+      const json = await r.json()
+      const prices = json.historical?.map(d => d.close).filter(Boolean)
+      if (prices && prices.length >= window) {
+        const sum = prices.slice(0, window).reduce((a, b) => a + b, 0)
+        return sum / window
+      }
+    }
+  } catch { /* skip */ }
+
+  return null
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -23,42 +68,26 @@ export default async function handler(req, res) {
   const { action, symbols, symbol, window: smaWindow } = req.query
 
   try {
-    // ALL_DATA: single call that returns quotes + SMAs for all symbols
+    // ALL_DATA: quotes + SMAs for all symbols
     if (action === 'all_data') {
       const tickers = symbols ? symbols.split(',') : []
       const quotes = {}
       const smas = {}
 
-      // Fetch quotes sequentially with delays
+      // Fetch quotes
       for (const ticker of tickers) {
-        try {
-          const url = `${MASSIVE_BASE}/v2/aggs/ticker/${ticker}/prev?adjusted=true&apiKey=${MASSIVE_KEY}`
-          const r = await fetchWithRetry(url)
-          if (r.ok) {
-            const json = await r.json()
-            const bar = json.results?.[0]
-            quotes[ticker] = { price: bar?.c ?? null, open: bar?.o ?? null, high: bar?.h ?? null, low: bar?.l ?? null }
-          } else {
-            quotes[ticker] = { price: null }
-          }
-        } catch { quotes[ticker] = { price: null } }
-        await delay(150)
+        quotes[ticker] = await getQuote(ticker)
+        await delay(100)
       }
 
-      // Fetch SMAs: 3 per ticker, sequentially
+      // Fetch SMAs
       for (const ticker of tickers) {
-        smas[ticker] = { sma15: null, sma62: null, sma200: null }
-        for (const w of [15, 62, 200]) {
-          try {
-            const url = `${MASSIVE_BASE}/v1/indicators/sma/${ticker}?timespan=day&adjusted=true&window=${w}&series_type=close&order=desc&limit=1&apiKey=${MASSIVE_KEY}`
-            const r = await fetchWithRetry(url)
-            if (r.ok) {
-              const json = await r.json()
-              smas[ticker][`sma${w}`] = json.results?.values?.[0]?.value ?? null
-            }
-          } catch { /* skip */ }
-          await delay(150)
+        smas[ticker] = {
+          sma15: await getSMA(ticker, 15),
+          sma62: await getSMA(ticker, 62),
+          sma200: await getSMA(ticker, 200)
         }
+        await delay(100)
       }
 
       return res.json({ quotes, smas })
@@ -69,18 +98,8 @@ export default async function handler(req, res) {
       const tickers = symbols ? symbols.split(',') : []
       const results = {}
       for (const ticker of tickers) {
-        try {
-          const url = `${MASSIVE_BASE}/v2/aggs/ticker/${ticker}/prev?adjusted=true&apiKey=${MASSIVE_KEY}`
-          const r = await fetchWithRetry(url)
-          if (r.ok) {
-            const json = await r.json()
-            const bar = json.results?.[0]
-            results[ticker] = { price: bar?.c ?? null }
-          } else {
-            results[ticker] = { price: null }
-          }
-        } catch { results[ticker] = { price: null } }
-        await delay(150)
+        results[ticker] = await getQuote(ticker)
+        await delay(100)
       }
       return res.json(results)
     }
@@ -88,22 +107,35 @@ export default async function handler(req, res) {
     // SMA: single symbol, single window
     if (action === 'sma') {
       if (!symbol || !smaWindow) return res.status(400).json({ error: 'symbol and window required' })
-      const url = `${MASSIVE_BASE}/v1/indicators/sma/${symbol}?timespan=day&adjusted=true&window=${smaWindow}&series_type=close&order=desc&limit=1&apiKey=${MASSIVE_KEY}`
-      const r = await fetchWithRetry(url)
-      if (!r.ok) return res.json({ value: null })
-      const json = await r.json()
-      return res.json({ value: json.results?.values?.[0]?.value ?? null, symbol, window: parseInt(smaWindow) })
+      const value = await getSMA(symbol, parseInt(smaWindow))
+      return res.json({ value, symbol, window: parseInt(smaWindow) })
     }
 
     // YTD price
     if (action === 'ytd_price') {
       if (!symbol) return res.status(400).json({ error: 'symbol required' })
       const year = new Date().getFullYear()
-      const url = `${MASSIVE_BASE}/v2/aggs/ticker/${symbol}/range/1/day/${year}-01-01/${year}-01-10?adjusted=true&sort=asc&limit=1&apiKey=${MASSIVE_KEY}`
-      const r = await fetchWithRetry(url)
-      if (!r.ok) return res.json({ price: null })
-      const json = await r.json()
-      return res.json({ price: json.results?.[0]?.c ?? null, symbol })
+
+      // Try MASSIVE
+      try {
+        const r = await fetch(`${MASSIVE_BASE}/v2/aggs/ticker/${symbol}/range/1/day/${year}-01-01/${year}-01-10?adjusted=true&sort=asc&limit=1&apiKey=${MASSIVE_KEY}`)
+        if (r.ok) {
+          const json = await r.json()
+          if (json.results?.[0]?.c) return res.json({ price: json.results[0].c, symbol })
+        }
+      } catch { /* fall through */ }
+
+      // Fallback: FMP
+      try {
+        const r = await fetch(`${FMP_BASE}/historical-price-full/${symbol}?from=${year}-01-01&to=${year}-01-10&apikey=${FMP_KEY}`)
+        if (r.ok) {
+          const json = await r.json()
+          const first = json.historical?.sort((a, b) => new Date(a.date) - new Date(b.date))?.[0]
+          if (first) return res.json({ price: first.close, symbol })
+        }
+      } catch { /* skip */ }
+
+      return res.json({ price: null, symbol })
     }
 
     return res.status(400).json({ error: 'Invalid action' })
