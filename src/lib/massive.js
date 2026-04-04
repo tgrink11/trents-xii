@@ -1,6 +1,6 @@
 const API_BASE = '/api/market-data'
 
-async function fetchWithTimeout(url, timeoutMs = 5000) {
+async function fetchWithTimeout(url, timeoutMs = 30000) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
@@ -8,7 +8,6 @@ async function fetchWithTimeout(url, timeoutMs = 5000) {
     clearTimeout(timer)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const text = await res.text()
-    // Guard against getting HTML back (dev server fallback)
     if (text.startsWith('<!') || text.startsWith('<html')) {
       throw new Error('Got HTML instead of JSON — API not available')
     }
@@ -24,9 +23,8 @@ export async function fetchQuotes(symbols) {
   return fetchWithTimeout(`${API_BASE}?action=quotes&${params}`)
 }
 
-export async function fetchSMA(symbol, window) {
-  const params = new URLSearchParams({ action: 'sma', symbol, window: String(window) })
-  return fetchWithTimeout(`${API_BASE}?${params}`)
+export async function fetchAllSmas(symbol) {
+  return fetchWithTimeout(`${API_BASE}?action=all_smas&symbol=${symbol}`)
 }
 
 export async function fetchVIX() {
@@ -34,25 +32,25 @@ export async function fetchVIX() {
 }
 
 export async function fetchAllMarketData(symbols) {
-  const [quotesData, vixData, ...smaResults] = await Promise.all([
-    fetchQuotes(symbols).catch(() => ({})),
-    fetchVIX().catch(() => ({ level: null })),
-    ...symbols.flatMap(sym => [
-      fetchSMA(sym, 15).catch(() => ({ value: null })),
-      fetchSMA(sym, 62).catch(() => ({ value: null })),
-      fetchSMA(sym, 200).catch(() => ({ value: null }))
-    ])
-  ])
+  // Step 1: Fetch quotes (one serverless call, sequential internally)
+  const quotesData = await fetchQuotes(symbols).catch(() => ({}))
 
+  // Step 2: Fetch VIX
+  const vixData = await fetchVIX().catch(() => ({ level: null }))
+
+  // Step 3: Fetch SMAs sequentially per symbol (each call gets all 3 windows)
   const smaMap = {}
-  let idx = 0
   for (const sym of symbols) {
-    smaMap[sym] = {
-      sma15: smaResults[idx]?.value ?? null,
-      sma62: smaResults[idx + 1]?.value ?? null,
-      sma200: smaResults[idx + 2]?.value ?? null
+    try {
+      const result = await fetchAllSmas(sym)
+      smaMap[sym] = {
+        sma15: result.sma15 ?? null,
+        sma62: result.sma62 ?? null,
+        sma200: result.sma200 ?? null
+      }
+    } catch {
+      smaMap[sym] = { sma15: null, sma62: null, sma200: null }
     }
-    idx += 3
   }
 
   return { quotes: quotesData, vix: vixData, smas: smaMap }

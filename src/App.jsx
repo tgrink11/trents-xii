@@ -69,10 +69,11 @@ export default function App() {
       }
 
       // Fetch YTD base prices for each symbol (with timeout for dev mode)
+      // Fetch YTD prices sequentially to avoid rate limits
       try {
         const fetchJson = async (url) => {
           const controller = new AbortController()
-          const timer = setTimeout(() => controller.abort(), 5000)
+          const timer = setTimeout(() => controller.abort(), 30000)
           try {
             const res = await fetch(url, { signal: controller.signal })
             clearTimeout(timer)
@@ -83,28 +84,23 @@ export default function App() {
           } catch (err) { clearTimeout(timer); throw err }
         }
 
-        const ytdResults = await Promise.all(
-          symbols.map(async (sym) => {
-            try {
-              const json = await fetchJson(`/api/market-data?action=ytd_price&symbol=${sym}`)
-              return { symbol: sym, price: json.price }
-            } catch { return { symbol: sym, price: null } }
-          })
-        )
         const ytdMap = {}
-        for (const { symbol, price } of ytdResults) {
-          if (price) ytdMap[symbol] = price
+        for (const sym of symbols) {
+          try {
+            const json = await fetchJson(`/api/market-data?action=ytd_price&symbol=${sym}`)
+            if (json.price) ytdMap[sym] = json.price
+          } catch { /* skip */ }
         }
         setYtdPrices(ytdMap)
 
         // Also get SPY YTD for benchmark
-        const [spyJson, spyQuote] = await Promise.all([
-          fetchJson('/api/market-data?action=ytd_price&symbol=SPY').catch(() => ({})),
-          fetchJson('/api/market-data?action=quotes&symbols=SPY').catch(() => ({}))
-        ])
-        if (spyJson.price && spyQuote.SPY?.price) {
-          setBenchmarkYtd(((spyQuote.SPY.price - spyJson.price) / spyJson.price) * 100)
-        }
+        try {
+          const spyJson = await fetchJson('/api/market-data?action=ytd_price&symbol=SPY')
+          const spyQuote = await fetchJson('/api/market-data?action=quotes&symbols=SPY')
+          if (spyJson.price && spyQuote.SPY?.price) {
+            setBenchmarkYtd(((spyQuote.SPY.price - spyJson.price) / spyJson.price) * 100)
+          }
+        } catch { /* skip */ }
       } catch (ytdErr) {
         console.warn('YTD data unavailable:', ytdErr.message)
       }
