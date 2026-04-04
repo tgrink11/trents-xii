@@ -43,47 +43,44 @@ export default function App() {
 
   const loadData = useCallback(async () => {
     try {
-      // Load holdings from Supabase or use sample data
+      // Step 1: Load holdings from Supabase (fast) — then show the page
       const dbHoldings = await getHoldings()
       const activeHoldings = dbHoldings.length > 0 ? dbHoldings : SAMPLE_HOLDINGS
-
       setHoldings(activeHoldings)
 
-      // Load trades and options
       const [dbTrades, dbOptions] = await Promise.all([
         getTrades(),
         getOptionsTrades()
       ])
       setTrades(dbTrades)
       setOptionsTrades(dbOptions)
+      setLoading(false) // Show page immediately with holdings
 
-      // Fetch market data
+      // Step 2: Load market data progressively in background
       const symbols = activeHoldings.map(h => h.symbol)
+
+      // Quotes + VIX first (one call each)
       try {
-        const marketData = await fetchAllMarketData(symbols)
-        setQuotes(marketData.quotes)
-        setSmas(marketData.smas)
-        setVixLevel(marketData.vix?.level)
+        const [quotesData, vixData] = await Promise.all([
+          fetchAllMarketData(symbols).catch(() => ({ quotes: {}, vix: { level: null }, smas: {} })),
+        ])
+        setQuotes(quotesData.quotes)
+        setSmas(quotesData.smas)
+        setVixLevel(quotesData.vix?.level)
       } catch (apiErr) {
-        console.warn('Market data API unavailable, using offline mode:', apiErr.message)
+        console.warn('Market data API unavailable:', apiErr.message)
       }
 
-      // Fetch YTD base prices for each symbol (with timeout for dev mode)
-      // Fetch YTD prices sequentially to avoid rate limits
-      try {
-        const fetchJson = async (url) => {
-          const controller = new AbortController()
-          const timer = setTimeout(() => controller.abort(), 30000)
-          try {
-            const res = await fetch(url, { signal: controller.signal })
-            clearTimeout(timer)
-            if (!res.ok) throw new Error(`HTTP ${res.status}`)
-            const text = await res.text()
-            if (text.startsWith('<!') || text.startsWith('<html')) throw new Error('HTML response')
-            return JSON.parse(text)
-          } catch (err) { clearTimeout(timer); throw err }
-        }
+      // Step 3: YTD prices (sequential to avoid rate limits)
+      const fetchJson = async (url) => {
+        const res = await fetch(url)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const text = await res.text()
+        if (text.startsWith('<!')) throw new Error('HTML response')
+        return JSON.parse(text)
+      }
 
+      try {
         const ytdMap = {}
         for (const sym of symbols) {
           try {
@@ -93,7 +90,7 @@ export default function App() {
         }
         setYtdPrices(ytdMap)
 
-        // Also get SPY YTD for benchmark
+        // SPY benchmark
         try {
           const spyJson = await fetchJson('/api/market-data?action=ytd_price&symbol=SPY')
           const spyQuote = await fetchJson('/api/market-data?action=quotes&symbols=SPY')
@@ -106,7 +103,6 @@ export default function App() {
       }
     } catch (err) {
       console.error('Error loading data:', err)
-    } finally {
       setLoading(false)
     }
   }, [])
