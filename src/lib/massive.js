@@ -1,6 +1,6 @@
 const API_BASE = '/api/market-data'
 
-async function fetchWithTimeout(url, timeoutMs = 30000) {
+async function fetchJson(url, timeoutMs = 60000) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
@@ -18,40 +18,26 @@ async function fetchWithTimeout(url, timeoutMs = 30000) {
   }
 }
 
-export async function fetchQuotes(symbols) {
+// Single call that gets quotes + SMAs for all symbols
+export async function fetchAllMarketData(symbols) {
   const params = new URLSearchParams({ symbols: symbols.join(',') })
-  return fetchWithTimeout(`${API_BASE}?action=quotes&${params}`)
-}
-
-export async function fetchAllSmas(symbol) {
-  return fetchWithTimeout(`${API_BASE}?action=all_smas&symbol=${symbol}`)
+  const data = await fetchJson(`${API_BASE}?action=all_data&${params}`)
+  return {
+    quotes: data.quotes || {},
+    smas: data.smas || {},
+    vix: { level: null } // VIX comes from separate endpoint
+  }
 }
 
 export async function fetchVIX() {
-  return fetchWithTimeout('/api/vix')
+  return fetchJson('/api/vix')
 }
 
-export async function fetchAllMarketData(symbols) {
-  // Step 1: Fetch quotes (one serverless call, sequential internally)
-  const quotesData = await fetchQuotes(symbols).catch(() => ({}))
+export async function fetchYtdPrice(symbol) {
+  return fetchJson(`${API_BASE}?action=ytd_price&symbol=${symbol}`)
+}
 
-  // Step 2: Fetch VIX
-  const vixData = await fetchVIX().catch(() => ({ level: null }))
-
-  // Step 3: Fetch SMAs sequentially per symbol (each call gets all 3 windows)
-  const smaMap = {}
-  for (const sym of symbols) {
-    try {
-      const result = await fetchAllSmas(sym)
-      smaMap[sym] = {
-        sma15: result.sma15 ?? null,
-        sma62: result.sma62 ?? null,
-        sma200: result.sma200 ?? null
-      }
-    } catch {
-      smaMap[sym] = { sma15: null, sma62: null, sma200: null }
-    }
-  }
-
-  return { quotes: quotesData, vix: vixData, smas: smaMap }
+export async function fetchQuotes(symbols) {
+  const params = new URLSearchParams({ symbols: symbols.join(',') })
+  return fetchJson(`${API_BASE}?action=quotes&${params}`)
 }

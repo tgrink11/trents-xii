@@ -5,7 +5,7 @@ import HoldingsTable from './components/HoldingsTable'
 import OptionsTable from './components/OptionsTable'
 import AdminPanel from './components/AdminPanel'
 import { getHoldings, getTrades, getOptionsTrades } from './lib/supabase'
-import { fetchAllMarketData } from './lib/massive'
+import { fetchAllMarketData, fetchVIX, fetchYtdPrice, fetchQuotes } from './lib/massive'
 import { calcPortfolioReturn } from './lib/calculations'
 import './styles/dashboard.css'
 
@@ -56,35 +56,25 @@ export default function App() {
       setOptionsTrades(dbOptions)
       setLoading(false) // Show page immediately with holdings
 
-      // Step 2: Load market data progressively in background
+      // Step 2: Load VIX immediately (separate fast endpoint)
       const symbols = activeHoldings.map(h => h.symbol)
+      fetchVIX().then(v => setVixLevel(v?.level)).catch(() => {})
 
-      // Quotes + VIX first (one call each)
+      // Step 3: Load all quotes + SMAs in one serverless call
       try {
-        const [quotesData, vixData] = await Promise.all([
-          fetchAllMarketData(symbols).catch(() => ({ quotes: {}, vix: { level: null }, smas: {} })),
-        ])
-        setQuotes(quotesData.quotes)
-        setSmas(quotesData.smas)
-        setVixLevel(quotesData.vix?.level)
+        const marketData = await fetchAllMarketData(symbols)
+        setQuotes(marketData.quotes)
+        setSmas(marketData.smas)
       } catch (apiErr) {
         console.warn('Market data API unavailable:', apiErr.message)
       }
 
-      // Step 3: YTD prices (sequential to avoid rate limits)
-      const fetchJson = async (url) => {
-        const res = await fetch(url)
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const text = await res.text()
-        if (text.startsWith('<!')) throw new Error('HTML response')
-        return JSON.parse(text)
-      }
-
+      // Step 4: YTD prices sequentially
       try {
         const ytdMap = {}
         for (const sym of symbols) {
           try {
-            const json = await fetchJson(`/api/market-data?action=ytd_price&symbol=${sym}`)
+            const json = await fetchYtdPrice(sym)
             if (json.price) ytdMap[sym] = json.price
           } catch { /* skip */ }
         }
@@ -92,10 +82,10 @@ export default function App() {
 
         // SPY benchmark
         try {
-          const spyJson = await fetchJson('/api/market-data?action=ytd_price&symbol=SPY')
-          const spyQuote = await fetchJson('/api/market-data?action=quotes&symbols=SPY')
-          if (spyJson.price && spyQuote.SPY?.price) {
-            setBenchmarkYtd(((spyQuote.SPY.price - spyJson.price) / spyJson.price) * 100)
+          const spyYtd = await fetchYtdPrice('SPY')
+          const spyQuote = await fetchQuotes(['SPY'])
+          if (spyYtd.price && spyQuote.SPY?.price) {
+            setBenchmarkYtd(((spyQuote.SPY.price - spyYtd.price) / spyYtd.price) * 100)
           }
         } catch { /* skip */ }
       } catch (ytdErr) {

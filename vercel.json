@@ -3,7 +3,7 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "functions": {
-    "api/market-data.js": { "maxDuration": 15 },
+    "api/market-data.js": { "maxDuration": 60 },
     "api/vix.js": { "maxDuration": 10 }
   }
 }
