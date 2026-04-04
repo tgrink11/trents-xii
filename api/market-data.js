@@ -13,6 +13,14 @@ export default async function handler(req, res) {
       const results = {}
 
       // Fetch previous day close for all tickers (snapshots require higher plan)
+      // If only one ticker requested with debug flag, return raw API response
+      if (req.query.debug === '1' && tickers.length === 1) {
+        const url = `${MASSIVE_BASE}/v2/aggs/ticker/${tickers[0]}/prev?adjusted=true&apiKey=${MASSIVE_KEY}`
+        const r = await fetch(url)
+        const json = await r.json()
+        return res.json({ _debug: true, status: r.status, url: url.replace(MASSIVE_KEY, 'REDACTED'), raw: json })
+      }
+
       const prevDays = await Promise.all(
         tickers.map(async (ticker) => {
           const url = `${MASSIVE_BASE}/v2/aggs/ticker/${ticker}/prev?adjusted=true&apiKey=${MASSIVE_KEY}`
