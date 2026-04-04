@@ -12,10 +12,10 @@ export default async function handler(req, res) {
       const tickers = symbols ? symbols.split(',') : []
       const results = {}
 
-      // Fetch snapshots for all tickers
-      const snapshots = await Promise.all(
+      // Fetch previous day close for all tickers (snapshots require higher plan)
+      const prevDays = await Promise.all(
         tickers.map(async (ticker) => {
-          const url = `${MASSIVE_BASE}/v2/snapshot/locale/us/markets/stocks/tickers/${ticker}?apiKey=${MASSIVE_KEY}`
+          const url = `${MASSIVE_BASE}/v2/aggs/ticker/${ticker}/prev?adjusted=true&apiKey=${MASSIVE_KEY}`
           const r = await fetch(url)
           if (!r.ok) return { ticker, data: null }
           const json = await r.json()
@@ -23,17 +23,16 @@ export default async function handler(req, res) {
         })
       )
 
-      for (const { ticker, data } of snapshots) {
-        if (data?.ticker) {
+      for (const { ticker, data } of prevDays) {
+        const bar = data?.results?.[0]
+        if (bar) {
           results[ticker] = {
-            price: data.ticker.day?.c ?? data.ticker.prevDay?.c ?? null,
-            change: data.ticker.todaysChange ?? null,
-            changePct: data.ticker.todaysChangePerc ?? null,
-            prevClose: data.ticker.prevDay?.c ?? null,
-            open: data.ticker.day?.o ?? null,
-            high: data.ticker.day?.h ?? null,
-            low: data.ticker.day?.l ?? null,
-            volume: data.ticker.day?.v ?? null
+            price: bar.c ?? null,
+            open: bar.o ?? null,
+            high: bar.h ?? null,
+            low: bar.l ?? null,
+            volume: bar.v ?? null,
+            vwap: bar.vw ?? null
           }
         } else {
           results[ticker] = { price: null }
