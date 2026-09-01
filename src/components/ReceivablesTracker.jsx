@@ -114,8 +114,9 @@ export default function ReceivablesTracker({ holdings = [] }) {
     <div className="rpt-section">
       <div className="section-title">Receivables Payment-Timing Tracker</div>
       <div className="rpt-purpose">
-        Downside detection: does receivables behavior confirm reported revenue growth, or contradict it?
-        A 0&ndash;100 quality signal, not a buy signal.
+        Downside detection: is the company actually collecting the revenue it reports?
+        Built on <strong>DSO</strong> &mdash; days sales outstanding, the average number of days between
+        making a sale and the cash arriving. A 0&ndash;100 quality signal, not a buy signal.
       </div>
 
       <form className="rpt-search" onSubmit={e => { e.preventDefault(); analyze(input) }}>
@@ -200,11 +201,12 @@ export default function ReceivablesTracker({ holdings = [] }) {
 
           {/* 8Q DSO trend */}
           <div className="rpt-block">
-            <div className="rpt-block-title">8-Quarter DSO Trend</div>
+            <div className="rpt-block-title">How Long Customers Take to Pay &mdash; 8 Quarters</div>
             <DsoSparkline points={result.sparkline} band={result.band} tierColor={tierColor} />
             <div className="rpt-caption">
-              Shaded band = {result.band.label} reference range ({result.band.low}&ndash;{result.band.high} days).
-              DSO = (average net receivables ÷ revenue) × 91.
+              Each point is days sales outstanding (DSO) &mdash; average days from sale to cash, calculated as
+              (average money owed by customers ÷ revenue) × 91. Lower is better; rising means customers are
+              slowing down. Shaded band = the typical range for {result.band.label} ({result.band.low}&ndash;{result.band.high} days).
             </div>
           </div>
 
@@ -276,13 +278,13 @@ export default function ReceivablesTracker({ holdings = [] }) {
                   <tr>
                     <th>Quarter</th>
                     <th>Revenue</th>
-                    <th>Net AR</th>
-                    <th>Avg AR</th>
-                    <th>DSO</th>
-                    <th>DSO YoY</th>
-                    <th>AR YoY</th>
-                    <th>Rev YoY</th>
-                    <th>Divergence</th>
+                    <th>Owed by<br/>customers</th>
+                    <th>Avg owed</th>
+                    <th>Days to<br/>collect</th>
+                    <th>Days<br/>vs yr ago</th>
+                    <th>Owed<br/>vs yr ago</th>
+                    <th>Revenue<br/>vs yr ago</th>
+                    <th>Gap</th>
                   </tr>
                 </thead>
                 <tbody>

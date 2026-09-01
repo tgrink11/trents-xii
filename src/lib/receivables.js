@@ -592,41 +592,41 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
   const components = [
     {
       key: 'dsoTrend',
-      label: 'DSO trend (QoQ + YoY + 8Q slope)',
+      label: 'How long customers take to pay (DSO trend)',
       value: blendedTrend,
-      valueText: `${latest.dso.toFixed(1)}d · YoY ${pct(dsoYoY)} · QoQ ${pct(dsoQoQ)} · slope ${pct(slopeAnnualized)}/yr`,
-      anchors: 'Green: flat or declining · Red: YoY DSO up >15%',
+      valueText: `${latest.dso.toFixed(1)} days to collect · ${pct(dsoYoY)} vs a year ago · ${pct(dsoQoQ)} vs last quarter · trend ${pct(slopeAnnualized)}/yr`,
+      anchors: 'Days sales outstanding — the average days between a sale and the cash arriving. Green: flat or falling · Red: up >15% year over year',
       weight: weights.dsoTrend,
       score01: scores.dsoTrend
     },
     {
       key: 'divergence',
-      label: 'AR / Revenue growth divergence',
+      label: 'Unpaid bills growing faster than sales',
       value: divergence,
       valueText: isNum(divergence)
-        ? `${pts(divergence)} (AR ${pct(latest.arYoY)} vs revenue ${pct(latest.revYoY)})`
+        ? `${pts(divergence)} — money owed ${pct(latest.arYoY)} vs revenue ${pct(latest.revYoY)}`
         : '—',
-      anchors: 'Green: ≤0 pts · Red: >10 pts',
+      anchors: 'Receivables (money owed by customers) growing faster than revenue. Green: ≤0 points faster · Red: >10 points faster',
       weight: weights.divergence,
       score01: scores.divergence
     },
     {
       key: 'bandPosition',
-      label: 'Industry-adjusted DSO percentile',
+      label: 'Payment speed vs the sector norm',
       value: bandRatio,
-      valueText: `${latest.dso.toFixed(1)}d vs ${band.low}–${band.high}d band (${(bandRatio * 100).toFixed(0)}% of ceiling)`,
+      valueText: `${latest.dso.toFixed(1)} days vs the ${band.low}–${band.high} day norm for this sector (${(bandRatio * 100).toFixed(0)}% of the ceiling)`,
       anchors: `Green: within ${band.label} band · Red: >1.5x ceiling (${(band.high * 1.5).toFixed(0)}d)`,
       weight: weights.bandPosition,
       score01: scores.bandPosition
     },
     {
       key: 'cashConversion',
-      label: 'Cash conversion signal',
+      label: 'Profit reported vs cash collected',
       value: cashGap,
       valueText: isNum(cashGap)
-        ? `NI ${pct(niGrowth)} vs FCF ${pct(fcfGrowth)} = ${pts(cashGap)} gap · ${isNum(arAttribution) ? `${(arAttribution * 100).toFixed(0)}% AR-explained` : 'AR attribution unknown'}`
+        ? `profit ${pct(niGrowth)} vs free cash flow ${pct(fcfGrowth)} = ${pts(cashGap)} gap · ${isNum(arAttribution) ? `${(arAttribution * 100).toFixed(0)}% of it explained by unpaid bills` : 'cause of the gap unknown'}`
         : `Not computable — ${cashBasis} base is zero or negative`,
-      anchors: 'Green: FCF/NI growth in line · Red: NI exceeds FCF by >20 pts, AR-driven',
+      anchors: 'Net income vs free cash flow growth. Green: in line · Red: profit outgrowing cash by >20 points, and receivables explain the gap',
       weight: weights.cashConversion,
       score01: scores.cashConversion
     }
@@ -635,9 +635,9 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
   if (allowanceAvailable) {
     components.push({
       key: 'allowance',
-      label: 'Allowance adequacy & trend (Tier 2)',
+      label: 'Reserve set aside for unpaid bills (Tier 2)',
       value: allowanceRising,
-      valueText: `${(allowanceRatio * 100).toFixed(2)}% of gross AR vs ${(band.reserveFloor * 100).toFixed(2)}% sector floor · rising ${allowanceRising}q${isNum(allowanceReleasePct) ? ` · rate ${allowanceReleasePct >= 0 ? '+' : ''}${allowanceReleasePct.toFixed(0)}% over the window` : ''}`,
+      valueText: `${(allowanceRatio * 100).toFixed(2)}% of what customers owe, vs a ${(band.reserveFloor * 100).toFixed(2)}% sector floor · rising ${allowanceRising} quarter${allowanceRising === 1 ? '' : 's'}${isNum(allowanceReleasePct) ? ` · reserve rate ${allowanceReleasePct >= 0 ? '+' : ''}${allowanceReleasePct.toFixed(0)}% across the window` : ''}`,
       anchors: 'Level (60%): at or above the sector reserve floor · Trend (40%): neither building 2+ quarters nor released >60%',
       weight: weights.allowance,
       score01: scores.allowance
@@ -645,9 +645,9 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
   } else {
     components.push({
       key: 'allowance',
-      label: 'Allowance adequacy & trend (Tier 2)',
+      label: 'Reserve set aside for unpaid bills (Tier 2)',
       value: null,
-      valueText: 'Not available — allowance for doubtful accounts is a 10-Q/10-K footnote (XBRL AllowanceForDoubtfulAccountsReceivable), not an FMP standardized line.',
+      valueText: 'Not available. The reserve a company sets aside for bills it expects never to collect is disclosed in a 10-Q/10-K footnote, not on the face of the statements.',
       anchors: 'Weight redistributed pro-rata across the other four components.',
       weight: 0,
       score01: null,
@@ -692,7 +692,7 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
     guardrails.push({
       key: 'ma',
       severity: 'warn',
-      text: `Acquisition >10% of revenue in ${maQuarters.map(q => q.label).join(', ')}. AR in those quarters moved on purchase accounting, not collection behavior — discount the trend across them.`
+      text: `Acquisition >10% of revenue in ${maQuarters.map(q => q.label).join(', ')}. The balance owed jumped in those quarters because an acquisition brought its invoices along, not because customers changed how they pay — discount the trend across them.`
     })
   }
 
@@ -700,7 +700,7 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
     guardrails.push({
       key: 'factoring',
       severity: 'warn',
-      text: `DSO of ${latest.dso.toFixed(1)}d sits far below the ${band.low}–${band.high}d ${band.label} band. Check the 10-K for "sale of receivables" / securitization language before treating this as clean — factored receivables leave the balance sheet and flatter DSO artificially.`
+      text: `Customers appear to pay in just ${latest.dso.toFixed(1)} days, far below the ${band.low}–${band.high} day norm for ${band.label}. Check the 10-K for "sale of receivables" or securitization language before treating that as clean — a company that sells its unpaid invoices to a third party removes them from the balance sheet, which makes collection look faster than it is.`
     })
   }
 
@@ -711,7 +711,7 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
     guardrails.push({
       key: 'hypergrowth',
       severity: 'info',
-      text: `AR/revenue divergence is ${divergence >= 0 ? '+' : ''}${divergence.toFixed(0)} pts, but DSO is ${dsoYoY >= 0 ? '+' : ''}${dsoYoY.toFixed(1)}% YoY and still inside the ${band.low}–${band.high}d band. In a fast-compounding quarter, period-end receivables mechanically outrun trailing revenue growth — collection speed itself has not deteriorated. Weight the DSO trend row over the divergence row here.`
+      text: `Money owed is growing ${divergence >= 0 ? '+' : ''}${divergence.toFixed(0)} points faster than revenue, but days-to-collect is ${dsoYoY >= 0 ? '+' : ''}${dsoYoY.toFixed(1)}% year over year and still inside the ${band.low}–${band.high} day norm. When sales compound fast, the quarter-end balance owed mechanically outruns trailing revenue growth even though nobody is paying slower. Weight the days-to-collect row over the growth-gap row here.`
     })
   }
 
@@ -719,7 +719,7 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
     guardrails.push({
       key: 'seasonality',
       severity: 'info',
-      text: `QoQ DSO is up ${dsoQoQ.toFixed(1)}% while YoY is ${dsoYoY.toFixed(1)}% — that reads as seasonal. The score is anchored on YoY for exactly this reason.`
+      text: `Days-to-collect rose ${dsoQoQ.toFixed(1)}% against last quarter but is ${dsoYoY.toFixed(1)}% against the same quarter last year — that pattern reads as seasonal. The score leans on the year-over-year comparison for exactly this reason.`
     })
   }
 
@@ -727,7 +727,7 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
     guardrails.push({
       key: 'mix',
       severity: 'info',
-      text: 'Before acting on this flag, sanity-check it against the 10-Q MD&A or the earnings call — a shift toward usage-based or prepaid billing moves DSO structurally with no quality signal behind it.'
+      text: 'Before acting on this flag, sanity-check it against the 10-Q MD&A or the earnings call — a shift toward usage-based or prepaid billing changes how fast customers pay for structural reasons, with no quality problem behind it.'
     })
   }
 
@@ -736,7 +736,7 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
       key: 'tier2',
       severity: allowanceUnavailableReason ? 'warn' : 'info',
       text: allowanceUnavailableReason
-        || 'No usable allowance-for-doubtful-accounts history from the SEC for this filer — either it never tags the concept, or its tagged series is stale. Tier 2’s 10% weight is redistributed 33/28/22/17 across the remaining components.'
+        || 'The SEC filings for this company do not give a usable history of the reserve it sets aside for bills it expects never to collect — either it never tags that figure, or the last one it tagged is years old. That component’s 10% weight is spread across the other four (33/28/22/17).'
     })
   } else {
     if (isNum(allowanceRatio) && allowanceRatio < band.reserveFloor * 0.6) {
@@ -744,14 +744,14 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
       guardrails.push({
         key: 'allowance-level',
         severity: 'warn',
-        text: `The allowance is ${(allowanceRatio * 100).toFixed(2)}% of gross AR against a ${(band.reserveFloor * 100).toFixed(2)}% floor for ${band.label}${under >= 2 ? ` — roughly ${under.toFixed(0)}x under-reserved for the sector` : ''}. Read that as management not provisioning, not as collections being safe. Customer concentration in high-credit-quality names can justify a thin reserve, so check who they sell to before treating it as a finding.`
+        text: `The reserve for uncollectable bills is ${(allowanceRatio * 100).toFixed(2)}% of everything customers owe, against a ${(band.reserveFloor * 100).toFixed(2)}% floor for ${band.label}${under >= 2 ? ` — roughly ${under.toFixed(0)}x under-reserved for the sector` : ''}. Read that as management not provisioning, not as collections being safe. Customer concentration in high-credit-quality names can justify a thin reserve, so check who they sell to before treating it as a finding.`
       })
     }
     if (isNum(allowanceReleasePct) && allowanceReleasePct < -25) {
       guardrails.push({
         key: 'allowance-release',
         severity: 'warn',
-        text: `The reserve rate has fallen ${Math.abs(allowanceReleasePct).toFixed(0)}% across the window, from ${(allowanceSeries[0].allowance / allowanceSeries[0].grossAr * 100).toFixed(2)}% to ${(allowanceRatio * 100).toFixed(2)}% of gross AR. A reserve released while the book holds up flatters earnings — the same soft-earnings tell as a reserve build, pointing the other way.`
+        text: `The reserve rate has fallen ${Math.abs(allowanceReleasePct).toFixed(0)}% across the window, from ${(allowanceSeries[0].allowance / allowanceSeries[0].grossAr * 100).toFixed(2)}% to ${(allowanceRatio * 100).toFixed(2)}% of everything customers owe. A reserve released while the book holds up flatters earnings — the same soft-earnings tell as a reserve build, pointing the other way.`
       })
     }
   }
@@ -760,7 +760,7 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
     guardrails.push({
       key: 'band-unmatched',
       severity: 'info',
-      text: `No sector profile matched this filer${profile.industry ? ` (${profile.industry})` : ''}, so the DSO band and reserve floor fall back to a deliberately wide default. The industry-adjusted row is close to uninformative here — lean on the DSO trend and divergence rows instead.`
+      text: `No sector profile matched this filer${profile.industry ? ` (${profile.industry})` : ''}, so the days-to-collect norm and reserve floor fall back to a deliberately wide default. The sector-comparison row is close to uninformative here — lean on the days-to-collect trend and the growth-gap rows instead.`
     })
   }
 
@@ -812,8 +812,8 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
 // whichever component is doing the most damage.
 function buildFlag({ score, tier, components, latest, divergenceStreak, dsoYoY, band, m }) {
   if (score >= 80) {
-    const yoyText = isNum(dsoYoY) ? ` (${dsoYoY >= 0 ? '+' : ''}${dsoYoY.toFixed(0)}% YoY)` : ''
-    return `Receivables track revenue — DSO ${latest.dso.toFixed(0)} days${yoyText}, inside the ${band.low}–${band.high}d ${band.label} band. Reported growth is cash-backed.`
+    const yoyText = isNum(dsoYoY) ? `, ${dsoYoY >= 0 ? 'up' : 'down'} ${Math.abs(dsoYoY).toFixed(0)}% from a year ago` : ''
+    return `Collections are keeping pace with sales — customers pay in about ${latest.dso.toFixed(0)} days${yoyText}, inside the ${band.low}–${band.high} day norm for ${band.label}. The reported growth is backed by cash.`
   }
 
   const worst = components
@@ -825,19 +825,19 @@ function buildFlag({ score, tier, components, latest, divergenceStreak, dsoYoY, 
 
   switch (worst.key) {
     case 'divergence':
-      return `AR growing ${Math.abs(m.divergence).toFixed(0)} points faster than revenue${streakText} — treat reported growth with skepticism until collections catch up.`
+      return `The money customers owe is growing ${Math.abs(m.divergence).toFixed(0)} points faster than sales${streakText} — treat the reported growth with skepticism until collections catch up.`
     case 'dsoTrend': {
       const move = isNum(dsoYoY) ? dsoYoY : m.blendedTrend
-      return `DSO up ${move.toFixed(0)}% YoY to ${latest.dso.toFixed(0)} days — customers are paying slower than they used to, which usually shows up in demand before it shows up in guidance.`
+      return `Customers now take ${latest.dso.toFixed(0)} days to pay, up ${move.toFixed(0)}% from a year ago — they are paying slower than they used to, which usually shows up in demand before it shows up in guidance.`
     }
     case 'bandPosition':
-      return `DSO of ${latest.dso.toFixed(0)} days runs ${(m.bandRatio * 100 - 100).toFixed(0)}% past the ${band.high}d ceiling for ${band.label} — collections are structurally slower than the peer set.`
+      return `Customers take ${latest.dso.toFixed(0)} days to pay, ${(m.bandRatio * 100 - 100).toFixed(0)}% beyond the ${band.high}-day ceiling for ${band.label} — collections are structurally slower than the peer set.`
     case 'cashConversion': {
       const attrText = isNum(m.arAttribution) ? ` and ${(m.arAttribution * 100).toFixed(0)}% of that gap is rising receivables` : ''
       return `Net income is outgrowing free cash flow by ${m.cashGap.toFixed(0)} points${attrText} — earnings are being reported ahead of the cash.`
     }
     case 'allowance':
-      return `Allowance for doubtful accounts has risen ${worst.value} consecutive quarters — management is pricing in write-offs before they show up in the numbers.`
+      return `The reserve for bills they expect never to collect has risen ${worst.value} quarters running — management is pricing in write-offs before they show up in the numbers.`
     default:
       return `RPT ${score}/100 — ${tier.label}. ${tier.blurb}`
   }
