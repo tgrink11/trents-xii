@@ -41,3 +41,8 @@ export async function fetchQuotes(symbols) {
   const params = new URLSearchParams({ symbols: symbols.join(',') })
   return fetchJson(`${API_BASE}?action=quotes&${params}`)
 }
+
+// Quarterly statements for the Receivables Payment-Timing Tracker
+export async function fetchReceivables(symbol, quarters = 12) {
+  return fetchJson(`/api/receivables?symbol=${encodeURIComponent(symbol)}&quarters=${quarters}`)
+}
