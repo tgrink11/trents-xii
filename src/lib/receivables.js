@@ -8,60 +8,213 @@ export const DAYS_IN_PERIOD = 91
 
 // ---------------------------------------------------------------- industry bands
 
-// Median DSO reference bands (days), adapted to BUS! coverage sectors from
-// cross-industry DSO benchmark data. Directional, not exact.
+// Sector reference profiles.
+//
+// Two calibrations per sector, both directional rather than exact:
+//   dsoLow/dsoHigh   — median DSO band (days). A 65-day DSO means one thing for
+//                      a semiconductor company and another for a restaurant.
+//   reserveFloor     — allowance for doubtful accounts as a share of gross AR,
+//   reserveTypical     below which a book looks under-reserved for the sector.
+//
+// The DSO bands for the technology rows come from cross-industry DSO benchmark
+// data adapted to coverage sectors. The non-tech rows and every reserve figure
+// are directional priors, set deliberately wide so only egregious outliers
+// score badly — a wrong norm should cost a company nothing, not accuse it.
+// Tune them as real peer data accumulates.
+//
+// Order matters: the first regex to match wins, so specific rows precede broad
+// ones. Matching runs against FMP's `industry` first, then `sector`.
 export const INDUSTRY_BANDS = [
+  // ---- technology ----
   {
     key: 'semiconductors',
     label: 'Semiconductors',
-    low: 50, high: 65,
+    low: 50, high: 65, reserveFloor: 0.003, reserveTypical: 0.007,
     match: [/semiconductor/i]
   },
   {
     key: 'saas',
     label: 'Software: SaaS / subscription',
-    low: 30, high: 45,
-    match: [/software\s*[-—]\s*application/i, /^software$/i, /internet content/i, /software application/i]
+    low: 30, high: 45, reserveFloor: 0.010, reserveTypical: 0.020,
+    match: [/software\s*[-—]\s*application/i, /^software$/i, /software application/i]
   },
   {
     key: 'enterprise-software',
     label: 'Software: enterprise / legacy license',
-    low: 60, high: 65,
+    low: 60, high: 65, reserveFloor: 0.008, reserveTypical: 0.015,
     match: [/software\s*[-—]\s*infrastructure/i, /enterprise software/i]
   },
   {
     key: 'it-services',
     label: 'Computer / IT services',
-    low: 70, high: 80,
+    low: 70, high: 80, reserveFloor: 0.008, reserveTypical: 0.018,
     match: [/information technology services/i, /\bit services\b/i, /technology consulting/i, /staffing/i]
   },
   {
     key: 'telecom-equipment',
     label: 'Telecom equipment',
-    low: 65, high: 75,
+    low: 65, high: 75, reserveFloor: 0.008, reserveTypical: 0.020,
     match: [/communication equipment/i, /telecom.*equipment/i, /networking/i]
   },
   {
     key: 'fintech',
     label: 'Fintech / transaction-based financial services',
-    low: 15, high: 30,
+    low: 15, high: 30, reserveFloor: 0.010, reserveTypical: 0.025,
     match: [/credit services/i, /financial\s*[-—]\s*data/i, /stock exchanges/i, /payment/i, /financial conglomerates/i]
   },
   {
     key: 'tech-hardware',
     label: 'General technology hardware',
-    low: 45, high: 60,
+    low: 45, high: 60, reserveFloor: 0.004, reserveTypical: 0.010,
     match: [/hardware/i, /consumer electronics/i, /electronic components/i, /computer/i, /technology distributors/i, /solar/i]
+  },
+
+  // ---- consumer ----
+  {
+    // Sells to the end consumer, who pays at the point of sale. Receivables are
+    // card settlements and vendor allowances, so DSO is single-digit by nature.
+    key: 'consumer-retail',
+    label: 'Retail / restaurants (consumer-paid)',
+    low: 3, high: 12, reserveFloor: 0.004, reserveTypical: 0.012,
+    match: [/discount stores/i, /restaurants/i, /home improvement/i, /specialty retail/i, /grocery/i, /department stores/i, /apparel\s*[-—]\s*retail/i, /internet retail/i, /auto\s*[-—]\s*dealerships/i, /luxury goods/i, /personal services/i]
+  },
+  {
+    key: 'homebuilders',
+    label: 'Homebuilding',
+    low: 5, high: 15, reserveFloor: 0.003, reserveTypical: 0.010,
+    match: [/residential construction/i, /homebuild/i]
+  },
+  {
+    // Branded manufacturers selling into retail — terms are set by the retailer.
+    key: 'consumer-brands',
+    label: 'Consumer brands (sells to retail)',
+    low: 30, high: 45, reserveFloor: 0.004, reserveTypical: 0.010,
+    match: [/household & personal/i, /beverages/i, /packaged foods/i, /confectioner/i, /tobacco/i, /apparel\s*[-—]\s*(manufactur|footwear)/i, /farm products/i, /food distribution/i]
+  },
+
+  // ---- healthcare ----
+  {
+    key: 'healthcare-plans',
+    label: 'Managed care / health plans',
+    low: 15, high: 30, reserveFloor: 0.010, reserveTypical: 0.030,
+    match: [/healthcare plans/i, /managed care/i]
+  },
+  {
+    // Patient and payer mix makes uncollectible balances structural here — the
+    // reserve norm sits an order of magnitude above most sectors.
+    key: 'healthcare-providers',
+    label: 'Healthcare providers / facilities',
+    low: 45, high: 65, reserveFloor: 0.030, reserveTypical: 0.080,
+    match: [/medical care facilities/i, /health information services/i, /diagnostics & research/i]
+  },
+  {
+    key: 'pharma',
+    label: 'Pharmaceuticals / biotech',
+    low: 55, high: 75, reserveFloor: 0.004, reserveTypical: 0.012,
+    match: [/drug manufacturers/i, /biotechnolog/i, /pharmaceutical retailers/i]
+  },
+  {
+    key: 'medical-devices',
+    label: 'Medical devices & supplies',
+    low: 55, high: 70, reserveFloor: 0.008, reserveTypical: 0.020,
+    match: [/medical devices/i, /medical instruments/i, /medical distribution/i, /medical\s*[-—]\s*(devices|instruments|supplies)/i]
+  },
+
+  // ---- industrial & transport ----
+  {
+    // Government and prime-contractor payers settle slowly, and milestone
+    // billing stretches the cycle further.
+    key: 'aerospace-defense',
+    label: 'Aerospace & defense',
+    low: 50, high: 70, reserveFloor: 0.003, reserveTypical: 0.010,
+    match: [/aerospace/i, /defense/i]
+  },
+  {
+    // Retainage is withheld until project completion, structurally inflating DSO.
+    key: 'engineering-construction',
+    label: 'Engineering & construction',
+    low: 60, high: 85, reserveFloor: 0.010, reserveTypical: 0.030,
+    match: [/engineering & construction/i, /infrastructure operations/i, /building products/i]
+  },
+  {
+    key: 'freight-logistics',
+    label: 'Freight & logistics',
+    low: 40, high: 55, reserveFloor: 0.008, reserveTypical: 0.020,
+    match: [/freight/i, /logistics/i, /trucking/i, /railroad/i, /marine shipping/i]
+  },
+  {
+    key: 'airlines',
+    label: 'Airlines & travel',
+    low: 10, high: 25, reserveFloor: 0.004, reserveTypical: 0.012,
+    match: [/airlines/i, /airports/i, /travel (services|lodging)/i, /resorts & casinos/i, /lodging/i]
+  },
+  {
+    key: 'autos',
+    label: 'Auto manufacturing & parts',
+    low: 25, high: 40, reserveFloor: 0.004, reserveTypical: 0.012,
+    match: [/auto\s*[-—]\s*(manufactur|parts|recreational)/i, /automobile/i]
+  },
+  {
+    key: 'chemicals-materials',
+    label: 'Chemicals & materials',
+    low: 45, high: 60, reserveFloor: 0.004, reserveTypical: 0.012,
+    match: [/chemicals/i, /agricultural inputs/i, /paper/i, /packaging/i, /steel/i, /aluminum/i, /copper/i, /gold/i, /silver/i, /other industrial metals/i, /building materials/i, /lumber/i]
+  },
+
+  // ---- communication & regulated ----
+  {
+    // Advertising receivables clear through agencies, which is slow by design.
+    key: 'media-advertising',
+    label: 'Media, entertainment & advertising',
+    low: 60, high: 90, reserveFloor: 0.010, reserveTypical: 0.030,
+    match: [/entertainment/i, /advertising agencies/i, /broadcasting/i, /publishing/i, /electronic gaming/i, /internet content/i]
+  },
+  {
+    // Consumer non-payment and churn keep provisioning structurally high.
+    key: 'telecom-services',
+    label: 'Telecom services',
+    low: 30, high: 45, reserveFloor: 0.020, reserveTypical: 0.050,
+    match: [/telecom services/i, /telecommunications services/i]
+  },
+  {
+    key: 'utilities',
+    label: 'Utilities (regulated)',
+    low: 25, high: 40, reserveFloor: 0.010, reserveTypical: 0.030,
+    match: [/utilities/i, /regulated (electric|gas|water)/i, /independent power/i, /renewable utilities/i]
+  },
+  {
+    key: 'energy',
+    label: 'Energy / oil & gas',
+    low: 30, high: 45, reserveFloor: 0.003, reserveTypical: 0.010,
+    match: [/oil & gas/i, /\benergy\b/i, /coal/i, /uranium/i, /pipeline/i]
+  },
+
+  // ---- catch-alls ----
+  {
+    // Financials, REITs and funds are already caveated as low-signal; a wide
+    // band keeps the component from manufacturing a verdict on them.
+    key: 'balance-sheet-lenders',
+    label: 'Financials / real estate (low-signal)',
+    low: 15, high: 45, reserveFloor: 0.005, reserveTypical: 0.020,
+    match: [/bank/i, /insurance/i, /asset management/i, /capital markets/i, /reit/i, /real estate/i, /mortgage/i, /financial/i]
   },
   {
     key: 'industrial',
-    label: 'Diversified industrial (fallback)',
-    low: 45, high: 60,
-    match: [/industrial/i, /machinery/i, /aerospace/i, /electrical equipment/i, /manufactur/i, /engineering/i, /construction/i, /auto\b/i, /chemicals/i, /packaging/i, /metals/i, /oil/i, /gas/i, /energy/i]
+    label: 'Diversified industrial',
+    low: 45, high: 60, reserveFloor: 0.006, reserveTypical: 0.015,
+    match: [/industrial/i, /machinery/i, /electrical equipment/i, /manufactur/i, /engineering/i, /construction/i, /conglomerate/i, /waste management/i, /security & protection/i, /business equipment/i, /rental & leasing/i, /metal fabrication/i, /tools & accessories/i, /pollution/i]
+  },
+  {
+    // Reached only when nothing above matches. Deliberately wide, and the
+    // scorer raises a guardrail saying the sector was not identified.
+    key: 'unclassified',
+    label: 'Unclassified',
+    low: 30, high: 65, reserveFloor: 0.004, reserveTypical: 0.012,
+    match: []
   }
 ]
 
-export const DEFAULT_BAND_KEY = 'tech-hardware'
+export const DEFAULT_BAND_KEY = 'unclassified'
 
 // Manual overrides where FMP's industry tag doesn't map cleanly to billing model.
 export const BAND_OVERRIDES = {
@@ -368,6 +521,9 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
   let allowanceRatio = null
   let allowanceRising = 0
   let allowanceAvailable = false
+  let allowanceLevelScore = null
+  let allowanceTrendScore = null
+  let allowanceReleasePct = null
   if (Array.isArray(allowanceSeries) && allowanceSeries.length >= 3) {
     const ratios = allowanceSeries
       .filter(a => isNum(a.allowance) && isNum(a.grossAr) && a.grossAr > 0)
@@ -380,8 +536,44 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
         if (ratios[i].ratio > ratios[i - 1].ratio) allowanceRising++
         else break
       }
+
+      // LEVEL — is the book reserved at all, by the standards of its sector?
+      // Scoring only the trend hands full marks to a company that reserves
+      // nothing and simply keeps reserving nothing. Anchors are deliberately
+      // generous: at or above the sector floor is clean, and it takes a book
+      // reserved at a fifth of the floor to zero the row, because the floors
+      // themselves are priors rather than measurements.
+      allowanceLevelScore = scoreLinear(
+        -allowanceRatio,
+        -band.reserveFloor,
+        -band.reserveFloor * 0.2
+      )
+
+      // TREND — two-sided. A rising reserve is management pricing in write-offs
+      // (the spec's original case). But a reserve *rate* falling hard while the
+      // book grows is release into earnings, which is the same soft-earnings
+      // tell pointing the other way. Only one of those was being scored.
+      const risingScore = scoreLinear(allowanceRising, 0, 2)
+      const oldest = ratios[0].ratio
+      allowanceReleasePct = oldest > 0
+        ? ((allowanceRatio - oldest) / oldest) * 100
+        : null
+      const releaseScore = isNum(allowanceReleasePct)
+        ? scoreLinear(-allowanceReleasePct, 25, 60) // -25% erosion still fine, -60% is a release
+        : null
+      allowanceTrendScore = isNum(releaseScore)
+        ? Math.min(risingScore, releaseScore)
+        : risingScore
     }
   }
+
+  // Level carries more of the component than direction: where a book sits
+  // relative to its sector says more about adequacy than which way it drifted.
+  const allowanceScore = allowanceAvailable
+    ? (isNum(allowanceLevelScore) && isNum(allowanceTrendScore)
+        ? allowanceLevelScore * 0.6 + allowanceTrendScore * 0.4
+        : (allowanceLevelScore ?? allowanceTrendScore))
+    : null
 
   const weights = allowanceAvailable ? BASE_WEIGHTS : WEIGHTS_NO_TIER2
 
@@ -391,7 +583,7 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
     divergence: scoreLinear(divergence, 0, 10),
     bandPosition: scoreLinear(bandRatio, 1.0, 1.5),
     cashConversion: scoreLinear(effectiveCashGap, 0, 20),
-    allowance: allowanceAvailable ? scoreLinear(allowanceRising, 0, 2) : null
+    allowance: allowanceScore
   }
 
   const pts = v => isNum(v) ? `${v >= 0 ? '+' : ''}${v.toFixed(1)} pts` : '—'
@@ -443,17 +635,17 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
   if (allowanceAvailable) {
     components.push({
       key: 'allowance',
-      label: 'Allowance ratio trend (Tier 2)',
+      label: 'Allowance adequacy & trend (Tier 2)',
       value: allowanceRising,
-      valueText: `${(allowanceRatio * 100).toFixed(2)}% of gross AR · rising ${allowanceRising} consecutive quarter${allowanceRising === 1 ? '' : 's'}`,
-      anchors: 'Green: flat/declining · Red: rising 2+ consecutive quarters',
+      valueText: `${(allowanceRatio * 100).toFixed(2)}% of gross AR vs ${(band.reserveFloor * 100).toFixed(2)}% sector floor · rising ${allowanceRising}q${isNum(allowanceReleasePct) ? ` · rate ${allowanceReleasePct >= 0 ? '+' : ''}${allowanceReleasePct.toFixed(0)}% over the window` : ''}`,
+      anchors: 'Level (60%): at or above the sector reserve floor · Trend (40%): neither building 2+ quarters nor released >60%',
       weight: weights.allowance,
       score01: scores.allowance
     })
   } else {
     components.push({
       key: 'allowance',
-      label: 'Allowance ratio trend (Tier 2)',
+      label: 'Allowance adequacy & trend (Tier 2)',
       value: null,
       valueText: 'Not available — allowance for doubtful accounts is a 10-Q/10-K footnote (XBRL AllowanceForDoubtfulAccountsReceivable), not an FMP standardized line.',
       anchors: 'Weight redistributed pro-rata across the other four components.',
@@ -546,14 +738,29 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
       text: allowanceUnavailableReason
         || 'No usable allowance-for-doubtful-accounts history from the SEC for this filer — either it never tags the concept, or its tagged series is stale. Tier 2’s 10% weight is redistributed 33/28/22/17 across the remaining components.'
     })
-  } else if (isNum(allowanceRatio) && allowanceRatio < 0.0025) {
-    // The Tier 2 component scores the *trend*, so a company carrying almost no
-    // reserve gets full marks simply for not raising it. On a large receivables
-    // book that thin reserve is the finding, not a clean bill.
+  } else {
+    if (isNum(allowanceRatio) && allowanceRatio < band.reserveFloor * 0.6) {
+      const under = band.reserveFloor / Math.max(allowanceRatio, 1e-9)
+      guardrails.push({
+        key: 'allowance-level',
+        severity: 'warn',
+        text: `The allowance is ${(allowanceRatio * 100).toFixed(2)}% of gross AR against a ${(band.reserveFloor * 100).toFixed(2)}% floor for ${band.label}${under >= 2 ? ` — roughly ${under.toFixed(0)}x under-reserved for the sector` : ''}. Read that as management not provisioning, not as collections being safe. Customer concentration in high-credit-quality names can justify a thin reserve, so check who they sell to before treating it as a finding.`
+      })
+    }
+    if (isNum(allowanceReleasePct) && allowanceReleasePct < -25) {
+      guardrails.push({
+        key: 'allowance-release',
+        severity: 'warn',
+        text: `The reserve rate has fallen ${Math.abs(allowanceReleasePct).toFixed(0)}% across the window, from ${(allowanceSeries[0].allowance / allowanceSeries[0].grossAr * 100).toFixed(2)}% to ${(allowanceRatio * 100).toFixed(2)}% of gross AR. A reserve released while the book holds up flatters earnings — the same soft-earnings tell as a reserve build, pointing the other way.`
+      })
+    }
+  }
+
+  if (band.key === 'unclassified') {
     guardrails.push({
-      key: 'allowance-level',
-      severity: 'warn',
-      text: `The allowance is only ${(allowanceRatio * 100).toFixed(2)}% of gross AR. Tier 2 scores whether the reserve is rising, so a book this thinly reserved earns full marks for holding flat — read that as "management is not provisioning", not as "collections are safe", and check the reserve against peers.`
+      key: 'band-unmatched',
+      severity: 'info',
+      text: `No sector profile matched this filer${profile.industry ? ` (${profile.industry})` : ''}, so the DSO band and reserve floor fall back to a deliberately wide default. The industry-adjusted row is close to uninformative here — lean on the DSO trend and divergence rows instead.`
     })
   }
 
