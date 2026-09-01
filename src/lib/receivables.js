@@ -223,9 +223,10 @@ export function applyRptOverlay(scorecardScore, rpt) {
  * @param {object} input.profile   { companyName, sector, industry, isEtf }
  * @param {string} input.symbol
  * @param {Array}  [input.allowanceSeries] optional Tier 2: [{date, allowance, grossAr}]
+ * @param {string} [input.allowanceUnavailableReason] why Tier 2 is off, when it's a config gap rather than a filer gap
  * @param {string} [input.bandOverride]
  */
-export function computeReceivablesQuality({ quarters = [], profile = {}, symbol = '', allowanceSeries = null, bandOverride = null }) {
+export function computeReceivablesQuality({ quarters = [], profile = {}, symbol = '', allowanceSeries = null, allowanceUnavailableReason = null, bandOverride = null }) {
   const band = resolveBand(profile, symbol, bandOverride)
   const caveat = sectorCaveat(profile)
   const companyName = profile.companyName || symbol
@@ -541,8 +542,9 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
   if (!allowanceAvailable) {
     guardrails.push({
       key: 'tier2',
-      severity: 'info',
-      text: 'No usable allowance-for-doubtful-accounts history from the SEC for this filer — either it never tags the concept, or its tagged series is stale. Tier 2’s 10% weight is redistributed 33/28/22/17 across the remaining components.'
+      severity: allowanceUnavailableReason ? 'warn' : 'info',
+      text: allowanceUnavailableReason
+        || 'No usable allowance-for-doubtful-accounts history from the SEC for this filer — either it never tags the concept, or its tagged series is stale. Tier 2’s 10% weight is redistributed 33/28/22/17 across the remaining components.'
     })
   } else if (isNum(allowanceRatio) && allowanceRatio < 0.0025) {
     // The Tier 2 component scores the *trend*, so a company carrying almost no

@@ -57,6 +57,7 @@ async function run(cases) {
       quarters: payload.quarters,
       profile: payload.profile,
       allowanceSeries: payload.allowanceSeries,
+      allowanceUnavailableReason: payload.allowanceUnavailableReason,
       symbol
     })
 

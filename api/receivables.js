@@ -15,8 +15,11 @@ const V3 = 'https://financialmodelingprep.com/api/v3'
 
 // SEC requires a User-Agent carrying real contact info, and caps callers at
 // 10 req/sec. One request per ticker, cached for a day, sits far under that.
+// No default contact: this repo is public, and calling the SEC without a
+// declared contact risks getting the whole deployment blocked. Unset simply
+// means Tier 2 stays off.
 const SEC_CONCEPT = 'https://data.sec.gov/api/xbrl/companyconcept'
-const SEC_CONTACT = (process.env.SEC_CONTACT || 'tgrink11@gmail.com').trim()
+const SEC_CONTACT = (process.env.SEC_CONTACT || '').trim()
 const SEC_USER_AGENT = `BUS! Receivables Payment-Timing Tracker (${SEC_CONTACT})`
 // Post-CECL the SEC relabeled this "Accounts Receivable, Allowance for Credit
 // Loss, Current", but the original tag is the one that resolves —
@@ -103,6 +106,7 @@ function normalizeCik(cik) {
  * its weight rather than failing.
  */
 async function fetchAllowanceFacts(cik) {
+  if (!SEC_CONTACT) return null
   const padded = normalizeCik(cik)
   if (!padded) return null
 
@@ -268,6 +272,14 @@ export default async function handler(req, res) {
       quarters
     )
 
+    // Say *why* Tier 2 is off. An unset SEC_CONTACT looks identical to a filer
+    // that doesn't tag the concept unless we distinguish them here.
+    const allowanceUnavailableReason = allowanceSeries
+      ? null
+      : (!SEC_CONTACT
+          ? 'Tier 2 is off because SEC_CONTACT is not set on this deployment. The SEC requires a contact address in the User-Agent of every request; set SEC_CONTACT in the Vercel project and redeploy to enable the allowance component. Its 10% weight is redistributed 33/28/22/17 meanwhile.'
+          : null)
+
     const payload = {
       symbol,
       profile: profile ? {
@@ -279,6 +291,7 @@ export default async function handler(req, res) {
       } : { companyName: symbol, sector: null, industry: null, isEtf: false, image: null },
       quarters,
       allowanceSeries,
+      allowanceUnavailableReason,
       fetchedAt: new Date().toISOString()
     }
 
