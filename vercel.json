@@ -4,6 +4,7 @@
   "framework": "vite",
   "functions": {
     "api/market-data.js": { "maxDuration": 60 },
-    "api/vix.js": { "maxDuration": 10 }
+    "api/vix.js": { "maxDuration": 10 },
+    "api/receivables.js": { "maxDuration": 30 }
   }
 }

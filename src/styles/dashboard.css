@@ -447,3 +447,362 @@ body {
   color: #1a1a2e;
   margin-bottom: 8px;
 }
+
+/* ============================================================
+   Receivables Payment-Timing Tracker (RPT)
+   ============================================================ */
+.rpt-section {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 2px solid #2c3e6b;
+}
+
+.rpt-section .section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #1a1a2e;
+  margin-bottom: 4px;
+}
+
+.rpt-purpose {
+  font-size: 12px;
+  color: #5a6472;
+  margin-bottom: 14px;
+  max-width: 760px;
+}
+
+/* Search + chips */
+.rpt-search {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.rpt-search input {
+  padding: 7px 10px;
+  border: 1px solid #b8c6d4;
+  border-radius: 3px;
+  font-size: 13px;
+  font-family: inherit;
+  width: 180px;
+  text-transform: uppercase;
+}
+
+.rpt-search input:focus {
+  outline: none;
+  border-color: #2c3e6b;
+}
+
+.rpt-btn {
+  padding: 7px 18px;
+  background: #2c3e6b;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.rpt-btn:disabled { opacity: 0.6; cursor: default; }
+.rpt-btn:hover:not(:disabled) { background: #1a1a2e; }
+
+.rpt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.rpt-chips-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #5a6472;
+  margin-right: 2px;
+}
+
+.rpt-chip {
+  padding: 3px 9px;
+  background: #f0f4f8;
+  border: 1px solid #b8c6d4;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #2c3e6b;
+  cursor: pointer;
+}
+
+.rpt-chip:hover { background: #e2eaf2; }
+.rpt-chip.active { background: #2c3e6b; color: #fff; border-color: #2c3e6b; }
+
+.rpt-status {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: #f0f4f8;
+  border: 1px solid #b8c6d4;
+  border-radius: 3px;
+  font-size: 13px;
+  color: #5a6472;
+}
+
+.rpt-error {
+  background: #fdf1f2;
+  border-color: #e8b4ba;
+  color: #a11f31;
+}
+
+/* Result headline */
+.rpt-result { margin-top: 16px; }
+
+.rpt-headline {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.rpt-score-block {
+  border: 3px solid #2c3e6b;
+  border-radius: 4px;
+  padding: 12px 20px 10px;
+  text-align: center;
+  min-width: 130px;
+}
+
+.rpt-score {
+  font-family: Georgia, serif;
+  font-size: 46px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.rpt-score-max {
+  font-size: 11px;
+  color: #5a6472;
+  margin-top: 2px;
+}
+
+.rpt-tier {
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.rpt-meta { flex: 1; min-width: 300px; }
+
+.rpt-company {
+  font-family: Georgia, serif;
+  font-size: 19px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 5px;
+}
+
+.rpt-symbol {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: #2c3e6b;
+  padding: 2px 7px;
+  border-radius: 3px;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+.rpt-provisional {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #a1631f;
+  background: #fdf5e6;
+  border: 1px solid #e8cf9e;
+  padding: 2px 6px;
+  border-radius: 3px;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.rpt-meta-line { font-size: 12.5px; color: #1a1a2e; margin-bottom: 3px; }
+.rpt-dim { color: #7a8698; }
+
+.rpt-tier-blurb {
+  font-size: 12px;
+  color: #5a6472;
+  font-style: italic;
+  margin-top: 6px;
+  max-width: 640px;
+}
+
+/* Tell Sheet flag */
+.rpt-flag {
+  margin-top: 16px;
+  padding: 11px 14px;
+  background: #f7f9fc;
+  border: 1px solid #d7e0ea;
+  border-left: 5px solid #2c3e6b;
+  border-radius: 3px;
+}
+
+.rpt-flag-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #7a8698;
+  margin-bottom: 3px;
+}
+
+.rpt-flag-text { font-size: 14px; color: #1a1a2e; line-height: 1.45; }
+
+/* Blocks */
+.rpt-block { margin-top: 22px; }
+
+.rpt-block-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #2c3e6b;
+  margin-bottom: 8px;
+}
+
+.rpt-caption {
+  font-size: 11px;
+  color: #7a8698;
+  margin-top: 6px;
+}
+
+/* Sparkline */
+.rpt-sparkline {
+  width: 100%;
+  max-width: 680px;
+  height: auto;
+  border: 1px solid #d7e0ea;
+  border-radius: 3px;
+  background: #fff;
+}
+
+.rpt-spark-axis { font-size: 10px; fill: #7a8698; }
+.rpt-spark-label { font-size: 10px; fill: #5a6472; }
+.rpt-spark-value { font-size: 10px; fill: #1a1a2e; font-weight: 700; }
+
+/* RPT tables */
+.rpt-table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 980px;
+}
+
+.rpt-table th,
+.rpt-table td {
+  border: 1px solid #b8c6d4;
+  padding: 7px 10px;
+  text-align: left;
+  font-size: 12.5px;
+  vertical-align: top;
+}
+
+.rpt-table th {
+  background: #2c3e6b;
+  color: #fff;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.rpt-metric-name { font-weight: 600; color: #1a1a2e; }
+.rpt-anchors { font-size: 10.5px; color: #7a8698; margin-top: 2px; }
+.rpt-value-cell { color: #1a1a2e; }
+.rpt-num { text-align: right; white-space: nowrap; }
+.rpt-row-muted td { background: #f7f9fc; color: #7a8698; }
+.rpt-good { color: #28a745; }
+.rpt-bad { color: #dc3545; font-weight: 600; }
+
+.rpt-bar {
+  margin-top: 4px;
+  height: 4px;
+  background: #e2eaf2;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.rpt-bar-fill { height: 100%; }
+
+.rpt-total-row td {
+  background: #f0f4f8;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.rpt-table-compact th,
+.rpt-table-compact td { padding: 5px 8px; font-size: 12px; }
+
+.rpt-table-scroll { overflow-x: auto; }
+
+.rpt-row-ma td { background: #fdf9ef; }
+
+.rpt-ma-tag {
+  margin-left: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #a1631f;
+  background: #fdf5e6;
+  border: 1px solid #e8cf9e;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+/* Guardrails */
+.rpt-guardrails { list-style: none; max-width: 980px; }
+
+.rpt-guardrail {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #1a1a2e;
+  padding: 8px 11px;
+  border: 1px solid #d7e0ea;
+  border-radius: 3px;
+  margin-bottom: 6px;
+  background: #f7f9fc;
+}
+
+.rpt-guardrail.rpt-warn { background: #fdf9ef; border-color: #e8cf9e; }
+
+.rpt-guardrail-tag {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #fff;
+  background: #7a8698;
+  padding: 1px 6px;
+  border-radius: 2px;
+  margin-right: 8px;
+  vertical-align: 1px;
+}
+
+.rpt-guardrail.rpt-warn .rpt-guardrail-tag { background: #c4881f; }
+
+@media (max-width: 700px) {
+  .rpt-headline { gap: 12px; }
+  .rpt-score { font-size: 38px; }
+}

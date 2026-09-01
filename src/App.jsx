@@ -4,6 +4,7 @@ import MarketIndicator from './components/MarketIndicator'
 import HoldingsTable from './components/HoldingsTable'
 import OptionsTable from './components/OptionsTable'
 import AdminPanel from './components/AdminPanel'
+import ReceivablesTracker from './components/ReceivablesTracker'
 import { getHoldings, getTrades, getOptionsTrades } from './lib/supabase'
 import { fetchAllMarketData, fetchVIX, fetchYtdPrice, fetchQuotes } from './lib/massive'
 import { calcPortfolioReturn } from './lib/calculations'
@@ -193,6 +194,9 @@ export default function App() {
 
       {/* Options Trades */}
       <OptionsTable optionsTrades={optionsTrades} />
+
+      {/* Receivables Payment-Timing Tracker */}
+      <ReceivablesTracker holdings={holdings} />
 
       {/* Admin Button */}
       <button className="admin-toggle" onClick={handleAdminToggle}>
