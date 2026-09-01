@@ -65,7 +65,11 @@ export default async function handler(req, res) {
   const symbol = (req.query.symbol || '').toString().trim().toUpperCase()
   if (!symbol) return res.status(400).json({ error: 'symbol required' })
   if (!/^[A-Z0-9.\-]{1,10}$/.test(symbol)) return res.status(400).json({ error: 'invalid symbol' })
-  if (!FMP_KEY) return res.status(500).json({ error: 'FMP_API_KEY not configured' })
+  if (!FMP_KEY) {
+    return res.status(500).json({
+      error: 'FMP_API_KEY is not set for this deployment environment. Add it under Vercel → Project Settings → Environment Variables (check Preview as well as Production), then redeploy.'
+    })
+  }
 
   // Ask for one extra quarter: the oldest AR reading is only used as the
   // "beginning balance" for the next quarter's average-receivables figure.
