@@ -542,7 +542,16 @@ export function computeReceivablesQuality({ quarters = [], profile = {}, symbol 
     guardrails.push({
       key: 'tier2',
       severity: 'info',
-      text: 'Tier 2 allowance-for-doubtful-accounts data is not wired in (needs a separate SEC XBRL pull). Its 10% weight is redistributed 33/28/22/17 across the remaining components.'
+      text: 'No usable allowance-for-doubtful-accounts history from the SEC for this filer — either it never tags the concept, or its tagged series is stale. Tier 2’s 10% weight is redistributed 33/28/22/17 across the remaining components.'
+    })
+  } else if (isNum(allowanceRatio) && allowanceRatio < 0.0025) {
+    // The Tier 2 component scores the *trend*, so a company carrying almost no
+    // reserve gets full marks simply for not raising it. On a large receivables
+    // book that thin reserve is the finding, not a clean bill.
+    guardrails.push({
+      key: 'allowance-level',
+      severity: 'warn',
+      text: `The allowance is only ${(allowanceRatio * 100).toFixed(2)}% of gross AR. Tier 2 scores whether the reserve is rising, so a book this thinly reserved earns full marks for holding flat — read that as "management is not provisioning", not as "collections are safe", and check the reserve against peers.`
     })
   }
 

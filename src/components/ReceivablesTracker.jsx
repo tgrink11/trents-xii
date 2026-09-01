@@ -93,6 +93,9 @@ export default function ReceivablesTracker({ holdings = [] }) {
       setResult(computeReceivablesQuality({
         quarters: payload.quarters,
         profile: payload.profile,
+        // Tier 2 from the SEC, aligned to these quarters server-side. Null for
+        // filers that don't tag the allowance or whose series has gone stale.
+        allowanceSeries: payload.allowanceSeries,
         symbol: sym
       }))
     } catch (err) {
