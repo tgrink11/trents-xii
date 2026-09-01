@@ -56,6 +56,8 @@ async function run(cases) {
     const rpt = computeReceivablesQuality({
       quarters: payload.quarters,
       profile: payload.profile,
+      allowanceSeries: payload.allowanceSeries,
+      allowanceUnavailableReason: payload.allowanceUnavailableReason,
       symbol
     })
 

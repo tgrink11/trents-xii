@@ -3,10 +3,31 @@
 // Pulls the quarterly statements the RPT model needs from FMP and returns them
 // as one normalized, oldest-first series. All scoring math lives client-side in
 // src/lib/receivables.js so it stays testable without a network round trip.
+//
+// Tier 2 (allowance for doubtful accounts) comes from the SEC's XBRL API and is
+// aligned to those quarters here — the browser can't make that call itself
+// (cross-origin, and User-Agent is a forbidden header), so it rides along in
+// the payload for the client-side scorer to consume.
 
 const FMP_KEY = process.env.FMP_API_KEY
 const STABLE = 'https://financialmodelingprep.com/stable'
 const V3 = 'https://financialmodelingprep.com/api/v3'
+
+// SEC requires a User-Agent carrying real contact info, and caps callers at
+// 10 req/sec. One request per ticker, cached for a day, sits far under that.
+// No default contact: this repo is public, and calling the SEC without a
+// declared contact risks getting the whole deployment blocked. Unset simply
+// means Tier 2 stays off.
+const SEC_CONCEPT = 'https://data.sec.gov/api/xbrl/companyconcept'
+const SEC_CONTACT = (process.env.SEC_CONTACT || '').trim()
+const SEC_USER_AGENT = `BUS! Receivables Payment-Timing Tracker (${SEC_CONTACT})`
+// Post-CECL the SEC relabeled this "Accounts Receivable, Allowance for Credit
+// Loss, Current", but the original tag is the one that resolves —
+// AccountsReceivableAllowanceForCreditLossCurrent 404s.
+const ALLOWANCE_TAG = 'AllowanceForDoubtfulAccountsReceivableCurrent'
+const PERIODIC_FORM = /^10-[QK]/
+const DATE_TOLERANCE_DAYS = 5
+const MIN_ALLOWANCE_QUARTERS = 3
 
 // Fundamentals only move once a quarter — cache aggressively to stay well
 // inside FMP rate limits when several tickers get checked in a session.
@@ -56,6 +77,114 @@ const num = (...vals) => {
     if (v != null && v !== '' && Number.isFinite(Number(v))) return Number(v)
   }
   return null
+}
+
+// ---------------------------------------------------------------- SEC Tier 2
+
+const secCache = new Map()
+const SEC_CACHE_TTL_MS = 24 * 60 * 60 * 1000
+
+// The API only accepts a 10-digit zero-padded CIK.
+function normalizeCik(cik) {
+  if (cik == null) return null
+  const digits = String(cik).replace(/\D/g, '')
+  if (!digits || Number(digits) === 0) return null
+  return digits.padStart(10, '0')
+}
+
+/**
+ * Allowance balances by period-end date, deduped.
+ *
+ * The same balance is re-reported across the original 10-Q and every later
+ * amendment, so end dates repeat heavily (MSFT: 136 facts, 73 duplicate ends).
+ * Keep the most recently filed value per date — that's the latest restatement.
+ * 8-K restatements carry the tag too and would double-count, so only periodic
+ * reports are read.
+ *
+ * Returns null when the filer doesn't tag the concept. Network and parse
+ * failures also return null: Tier 2 is optional, and the scorer redistributes
+ * its weight rather than failing.
+ */
+async function fetchAllowanceFacts(cik) {
+  if (!SEC_CONTACT) return null
+  const padded = normalizeCik(cik)
+  if (!padded) return null
+
+  const hit = secCache.get(padded)
+  if (hit && Date.now() - hit.at < SEC_CACHE_TTL_MS) return hit.facts
+
+  let facts = null
+  try {
+    const r = await fetch(`${SEC_CONCEPT}/CIK${padded}/us-gaap/${ALLOWANCE_TAG}.json`, {
+      headers: { 'User-Agent': SEC_USER_AGENT, accept: 'application/json' },
+      signal: AbortSignal.timeout(8000)
+    })
+    // 404 = this filer has never tagged the concept. Not an error.
+    if (r.ok) {
+      const json = await r.json()
+      const rows = json?.units?.USD
+      if (Array.isArray(rows) && rows.length) {
+        const latestFiled = new Map()
+        for (const f of rows) {
+          if (!f?.end || !Number.isFinite(f.val)) continue
+          if (!PERIODIC_FORM.test(f.form || '')) continue
+          const filed = f.filed || ''
+          const prev = latestFiled.get(f.end)
+          if (!prev || filed >= prev.filed) latestFiled.set(f.end, { val: f.val, filed })
+        }
+        if (latestFiled.size) {
+          facts = Object.fromEntries([...latestFiled].map(([end, v]) => [end, v.val]))
+        }
+      }
+    }
+  } catch {
+    facts = null // offline, timeout, malformed — degrade to "no Tier 2"
+  }
+
+  secCache.set(padded, { at: Date.now(), facts })
+  return facts
+}
+
+const dayDiff = (a, b) => Math.abs(new Date(a) - new Date(b)) / 86400000
+
+/**
+ * Line the allowance facts up with the quarters actually being scored, deriving
+ * gross AR from  Gross = Net + Allowance  (AccountsReceivableGrossCurrent is
+ * barely tagged, and this needs no extra request).
+ *
+ * Returns null unless the series is both deep enough AND current. That second
+ * condition matters: NVDA still returns 18 facts but stopped tagging in 2018,
+ * so a presence check alone would score a 2026 ratio off an 8-year-old balance.
+ */
+function alignAllowanceToQuarters(facts, quarters) {
+  if (!facts || !quarters.length) return null
+  const ends = Object.keys(facts)
+  if (!ends.length) return null
+
+  const findNear = (date) => {
+    let best = null
+    for (const end of ends) {
+      const d = dayDiff(end, date)
+      if (d <= DATE_TOLERANCE_DAYS && (!best || d < best.d)) best = { end, d }
+    }
+    return best ? facts[best.end] : null
+  }
+
+  const points = []
+  for (const q of quarters) {
+    if (!Number.isFinite(q.netReceivables)) continue
+    const allowance = findNear(q.date)
+    if (allowance == null) continue
+    points.push({ date: q.date, allowance, grossAr: q.netReceivables + allowance })
+  }
+
+  if (points.length < MIN_ALLOWANCE_QUARTERS) return null
+
+  // Stale-series gate: the newest quarter being scored must itself be covered.
+  const newest = quarters[quarters.length - 1]?.date
+  if (!points.some((p) => p.date === newest)) return null
+
+  return points
 }
 
 export default async function handler(req, res) {
@@ -135,6 +264,22 @@ export default async function handler(req, res) {
       .filter(q => q.revenue != null && q.netReceivables != null)
       .sort((a, b) => new Date(a.date) - new Date(b.date))
 
+    // Tier 2: the allowance for doubtful accounts. Optional by design — when a
+    // filer doesn't tag it (or stopped years ago) this stays null and the
+    // scorer redistributes the 10% weight across the other components.
+    const allowanceSeries = alignAllowanceToQuarters(
+      await fetchAllowanceFacts(profile?.cik),
+      quarters
+    )
+
+    // Say *why* Tier 2 is off. An unset SEC_CONTACT looks identical to a filer
+    // that doesn't tag the concept unless we distinguish them here.
+    const allowanceUnavailableReason = allowanceSeries
+      ? null
+      : (!SEC_CONTACT
+          ? 'Tier 2 is off because SEC_CONTACT is not set on this deployment. The SEC requires a contact address in the User-Agent of every request; set SEC_CONTACT in the Vercel project and redeploy to enable the allowance component. Its 10% weight is redistributed 33/28/22/17 meanwhile.'
+          : null)
+
     const payload = {
       symbol,
       profile: profile ? {
@@ -145,6 +290,8 @@ export default async function handler(req, res) {
         image: profile.image || null
       } : { companyName: symbol, sector: null, industry: null, isEtf: false, image: null },
       quarters,
+      allowanceSeries,
+      allowanceUnavailableReason,
       fetchedAt: new Date().toISOString()
     }
 
