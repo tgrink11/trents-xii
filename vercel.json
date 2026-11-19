@@ -5,6 +5,10 @@
   "functions": {
     "api/market-data.js": { "maxDuration": 60 },
     "api/vix.js": { "maxDuration": 10 },
-    "api/receivables.js": { "maxDuration": 30 }
-  }
+    "api/receivables.js": { "maxDuration": 30 },
+    "api/cron/prices-eod.js": { "maxDuration": 60 }
+  },
+  "crons": [
+    { "path": "/api/cron/prices-eod", "schedule": "30 22 * * 1-5" }
+  ]
 }

@@ -2,3 +2,7 @@ node_modules
 dist
 .env
 .vercel
+
+# Symbol lists for the price-store backfill. They can include subscriber-only
+# tickers from other apps, and this repo is public.
+scripts/universes/
