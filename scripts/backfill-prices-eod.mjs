@@ -6,7 +6,11 @@
 // prices_eod_symbols so the daily cron keeps it current. Safe to re-run: it
 // only ever upserts, and a re-run also refreshes adj_close after a split.
 //
-//   node --env-file=.env scripts/backfill-prices-eod.mjs [options] [SYMBOL ...]
+//   node --use-system-ca --env-file=.env scripts/backfill-prices-eod.mjs [options] [SYMBOL ...]
+//
+// --use-system-ca makes Node trust the certificates Windows trusts. Without it,
+// antivirus that inspects HTTPS (Norton here) makes every request fail with
+// UNABLE_TO_VERIFY_LEAF_SIGNATURE.
 //
 //   --file <path>    extra symbols, one per line or comma-separated (# comments ok);
 //                    repeatable, e.g. one file per app universe
@@ -107,6 +111,7 @@ async function main() {
   const failed = []
   const empty = []
   let rowsUpserted = 0
+  let networkFailures = 0
   let splitsUpserted = 0
   let done = 0
 
@@ -128,6 +133,7 @@ async function main() {
           last_date: rows[rows.length - 1].date
         }])
         done += 1
+        networkFailures = 0
         console.log(`${symbol.padEnd(8)} ${String(rows.length).padStart(5)} rows  ${rows[0].date} → ${rows[rows.length - 1].date}`)
       }
     } catch (err) {
@@ -136,6 +142,15 @@ async function main() {
       // A bad key or an exhausted quota will fail every symbol; stop early.
       if (err.status === 401 || err.status === 402 || err.status === 403 || err.status === 429) {
         console.log('Stopping: EODHD refused the request (key or quota).')
+        break
+      }
+      // Nothing is getting through at all: stop instead of failing every symbol.
+      if (/network error|fetch failed/.test(err.message) && ++networkFailures >= 5 && done === 0) {
+        console.log('Stopping: no request is reaching the network.')
+        if (/UNABLE_TO_VERIFY|SELF_SIGNED|CERT_/.test(err.message)) {
+          console.log('Node does not trust the certificate it was shown (antivirus HTTPS inspection).')
+          console.log('Run with:  node --use-system-ca --env-file=.env scripts/backfill-prices-eod.mjs ...')
+        }
         break
       }
     }

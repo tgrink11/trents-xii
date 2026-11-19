@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "backfill:prices": "node --env-file=.env scripts/backfill-prices-eod.mjs"
+    "backfill:prices": "node --use-system-ca --env-file=.env scripts/backfill-prices-eod.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
