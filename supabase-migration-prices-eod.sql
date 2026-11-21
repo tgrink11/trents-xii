@@ -75,12 +75,15 @@ CREATE TABLE IF NOT EXISTS prices_eod_splits (
 ALTER TABLE prices_eod_splits ENABLE ROW LEVEL SECURITY;
 
 -- What to divide a bar's prices by (and multiply its volume by) to put it on
--- today's share basis: the product of every split after that bar.
+-- today's share basis: the product of every split after that bar. EODHD lists
+-- splits ahead of time, so one dated in the future (New York time) is ignored
+-- until its day arrives.
 CREATE OR REPLACE FUNCTION prices_eod_split_factor(p_symbol TEXT, p_date DATE)
 RETURNS NUMERIC LANGUAGE sql STABLE SET search_path = public AS $$
   SELECT COALESCE(round(exp(sum(ln(s.ratio))), 8), 1)
   FROM prices_eod_splits s
   WHERE s.symbol = p_symbol AND s.date > p_date
+    AND s.date <= (now() AT TIME ZONE 'America/New_York')::date
 $$;
 
 -- One row per requested symbol that the store holds: the latest bar, the
